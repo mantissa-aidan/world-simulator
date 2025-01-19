@@ -6,8 +6,7 @@ use ggez::{ContextBuilder, GameError};
 use ggez::conf::{WindowMode, WindowSetup};
 use std::f32::consts::PI;
 use std::time::{Duration, Instant};
-use rayon::prelude::*;
-
+use rand::Rng;
 
 const VISION_RANGE: f32 = 60.0; // Set your desired vision range here
 const SCALING_FACTOR: f32 = 20.0; // Set your desired vision range here
@@ -85,8 +84,7 @@ impl Agent {
 
     // Moves the agent randomly within the bounds of the world.
     pub fn move_randomly(&mut self, max_x: i32, max_y: i32) {
-        use rand::{thread_rng, Rng};
-        let mut rng = thread_rng();
+        let mut rng = rand::thread_rng();
         let angle = rng.gen_range(-0.5..=0.5);
         self.rotate(angle);
     
@@ -158,11 +156,71 @@ impl Agent {
     
 }
 
+// Change SpatialGrid to be public
+pub struct SpatialGrid {
+    cells: Vec<Vec<usize>>,
+    cell_size: f32,
+    width: usize,
+    height: usize,
+}
+
+impl SpatialGrid {
+    fn new(width: f32, height: f32, cell_size: f32) -> Self {
+        let w = (width / cell_size).ceil() as usize;
+        let h = (height / cell_size).ceil() as usize;
+        let cells = vec![Vec::new(); w * h];
+        SpatialGrid {
+            cells,
+            cell_size,
+            width: w,
+            height: h,
+        }
+    }
+
+    fn clear(&mut self) {
+        for cell in &mut self.cells {
+            cell.clear();
+        }
+    }
+
+    fn get_cell_index(&self, position: (f32, f32)) -> usize {
+        let x = (position.0 / self.cell_size).floor() as usize;
+        let y = (position.1 / self.cell_size).floor() as usize;
+        y * self.width + x
+    }
+
+    fn insert(&mut self, position: (f32, f32), agent_index: usize) {
+        let idx = self.get_cell_index(position);
+        if idx < self.cells.len() {
+            self.cells[idx].push(agent_index);
+        }
+    }
+
+    fn get_neighbors(&self, position: (f32, f32)) -> Vec<usize> {
+        let mut neighbors = Vec::new();
+        let cell_x = (position.0 / self.cell_size).floor() as i32;
+        let cell_y = (position.1 / self.cell_size).floor() as i32;
+
+        for dy in -1..=1 {
+            for dx in -1..=1 {
+                let nx = cell_x + dx;
+                let ny = cell_y + dy;
+                if nx >= 0 && nx < self.width as i32 && ny >= 0 && ny < self.height as i32 {
+                    let idx = (ny * self.width as i32 + nx) as usize;
+                    neighbors.extend(self.cells[idx].iter());
+                }
+            }
+        }
+        neighbors
+    }
+}
+
 // Represents the world in which agents exist.
 pub struct World {
     pub width: i32,
     pub height: i32,
     pub agents: Vec<Agent>,
+    grid: SpatialGrid,
 }
 
 impl World {
@@ -172,6 +230,11 @@ impl World {
             width,
             height,
             agents: Vec::new(),
+            grid: SpatialGrid::new(
+                (width as f32) * SCALING_FACTOR,
+                (height as f32) * SCALING_FACTOR,
+                VISION_RANGE,
+            ),
         }
     }
 
@@ -183,75 +246,53 @@ impl World {
     pub fn update(&mut self, follow_mouse: bool, mouse_position: [f32; 2]) {
         // Build the spatial grid
         self.grid.clear();
-        for (i, agent) in self.agents.iter().enumerate() {
-            let position = (
-                agent.x as f32 * SCALING_FACTOR,
-                agent.y as f32 * SCALING_FACTOR,
+        for (idx, agent) in self.agents.iter().enumerate() {
+            self.grid.insert(
+                (agent.x as f32 * SCALING_FACTOR, agent.y as f32 * SCALING_FACTOR),
+                idx,
             );
-            self.grid.insert(position, i);
         }
-    
-        // Use a vector to collect indices of agents to remove
-        let mut agents_to_remove = Vec::new();
-    
-        for (i, agent) in self.agents.iter_mut().enumerate() {
+
+        // First, collect all agent decisions
+        let mut agent_moves: Vec<(usize, (f32, f32))> = Vec::with_capacity(self.agents.len());
+        
+        for (agent_idx, agent) in self.agents.iter().enumerate() {
+            let mut target_pos = None;
+
             if follow_mouse {
-                agent.move_towards(
-                    mouse_position[0],
-                    mouse_position[1],
-                    self.width,
-                    self.height,
-                );
+                target_pos = Some(mouse_position);
             } else {
-                match agent.agent_type {
-                    AgentType::TypeA => {
-                        // Predators look for prey
-                        if let Some((prey_idx, prey)) =
-                            agent.find_nearest_visible_agent(&self.agents, AgentType::TypeB, &self.grid)
-                        {
-                            // Move towards prey
-                            agent.move_towards(
-                                prey.x as f32 * SCALING_FACTOR,
-                                prey.y as f32 * SCALING_FACTOR,
-                                self.width,
-                                self.height,
-                            );
-                            // Check if predator caught the prey
-                            if agent.x == prey.x && agent.y == prey.y {
-                                // Mark prey for removal
-                                agents_to_remove.push(prey_idx);
-                            }
-                        } else {
-                            // No prey in sight, move randomly
-                            agent.move_randomly(self.width, self.height);
-                        }
-                    }
-                    AgentType::TypeB => {
-                        // Prey avoid predators
-                        if let Some((_predator_idx, predator)) =
-                            agent.find_nearest_visible_agent(&self.agents, AgentType::TypeA, &self.grid)
-                        {
-                            // Move away from predator
-                            agent.move_away_from(
-                                predator.x as f32 * SCALING_FACTOR,
-                                predator.y as f32 * SCALING_FACTOR,
-                                self.width,
-                                self.height,
-                            );
-                        } else {
-                            // No predator in sight, move randomly
-                            agent.move_randomly(self.width, self.height);
-                        }
-                    }
+                // Find nearest agent of opposite type
+                if let Some((_, other)) = agent.find_nearest_visible_agent(
+                    &self.agents,
+                    match agent.agent_type {
+                        AgentType::TypeA => AgentType::TypeB,
+                        AgentType::TypeB => AgentType::TypeA,
+                    },
+                    &self.grid,
+                ) {
+                    target_pos = Some([
+                        other.x as f32 * SCALING_FACTOR,
+                        other.y as f32 * SCALING_FACTOR,
+                    ]);
                 }
             }
+
+            if let Some([target_x, target_y]) = target_pos {
+                agent_moves.push((agent_idx, (target_x, target_y)));
+            } else {
+                // No target found, move randomly
+                agent_moves.push((agent_idx, (-1.0, -1.0))); // Use -1,-1 to indicate random movement
+            }
         }
-    
-        // Remove captured prey
-        agents_to_remove.sort_unstable();
-        agents_to_remove.dedup();
-        for index in agents_to_remove.into_iter().rev() {
-            self.agents.remove(index);
+
+        // Then apply all moves
+        for (agent_idx, (target_x, target_y)) in agent_moves {
+            if target_x < 0.0 && target_y < 0.0 {
+                self.agents[agent_idx].move_randomly(self.width, self.height);
+            } else {
+                self.agents[agent_idx].move_towards(target_x, target_y, self.width, self.height);
+            }
         }
     }
     
@@ -368,11 +409,11 @@ impl Simulation {
     // Creates a new simulation with a predefined world and agents.
 
     fn new() -> Self {
-        let mut world = World::new(160, 90); // Increased from 80x45 to 160x90
+        let mut world = World::new(80, 45); // Halved from 160x90
         // Add multiple predators and prey
         for _ in 0..100 {
-            world.add_agent(rand::random::<i32>() % 160, rand::random::<i32>() % 90, AgentType::TypeA);
-            world.add_agent(rand::random::<i32>() % 160, rand::random::<i32>() % 90, AgentType::TypeB);
+            world.add_agent(rand::random::<i32>() % 80, rand::random::<i32>() % 45, AgentType::TypeA);
+            world.add_agent(rand::random::<i32>() % 80, rand::random::<i32>() % 45, AgentType::TypeB);
         }
 
         Simulation { 
@@ -465,7 +506,7 @@ impl EventHandler<GameError> for Simulation {
 
 fn main() -> GameResult {
     let (ctx, event_loop) = ContextBuilder::new("world_simulator", "YourName")
-        .window_mode(WindowMode::default().dimensions(3200.0, 1800.0)) // Doubled window dimensions
+        .window_mode(WindowMode::default().dimensions(1600.0, 900.0)) // Halved from 3200x1800
         .window_setup(WindowSetup::default().title("World Simulator"))
         .build()?;
 
