@@ -15,11 +15,13 @@
 //! - Components are stored in a HashMap within each Agent
 //!
 //! ## Example
-//! ```rust
-//! use world_simulator::components::{Component, Position};
-//!
-//! let position = Position { x: 10, y: 20 };
-//! // Can be added to any agent using agent.add_component(position)
+//! Example:
+//! ```
+//! use world_simulator::components::Position;
+//! 
+//! let position = Position { x: 10.0, y: 20.0 };
+//! assert_eq!(position.x, 10.0);
+//! assert_eq!(position.y, 20.0);
 //! ```
 
 use std::any::Any;

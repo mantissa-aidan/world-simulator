@@ -33,7 +33,7 @@ use std::any::TypeId;
 use rand::Rng;
 
 use crate::constants::{VISION_RANGE, BASE_PREDATOR_SPEED, BASE_PREY_SPEED, MAX_ROTATION};
-use crate::components::{Component, Position, Movement, Health, Vision};
+use crate::components::{Component, Position, Movement, Vision};
 use crate::spatial::SpatialGrid;
 
 /// Represents different types of agents in the simulation

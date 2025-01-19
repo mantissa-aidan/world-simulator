@@ -1,107 +1,100 @@
 # World Simulator
 
-A Rust-based simulation demonstrating modern game architecture and design patterns. This project serves as a learning resource for Rust programming concepts and software design patterns.
+A predator-prey simulation built in Rust using ggez for visualization. The simulation features agents that can chase, flee, and interact with each other in a 2D environment.
 
 ## Features
 
-- Entity-Component System (ECS) architecture
-- Spatial partitioning for efficient agent interactions
-- Event-driven communication using the Observer pattern
-- State management using the State pattern
-- Parallel processing for performance optimization
+- Predator and prey agents with distinct behaviors
+- Training mode for reinforcement learning
+- Real-time visualization with ggez
+- Configurable simulation parameters
+- Performance optimizations including SIMD and batch processing
 
-## Architecture
+## Requirements
 
-The project is organized into several modules:
+- Rust (stable channel)
+- Cargo package manager
+- ggez dependencies (see below for platform-specific requirements)
 
-- `agent.rs`: Implements the Entity-Component System for agents
-- `components.rs`: Defines component traits and implementations
-- `events.rs`: Handles event management using the Observer pattern
-- `states.rs`: Manages simulation states using the State pattern
-- `world.rs`: Implements spatial partitioning and world management
-- `main.rs`: Entry point and simulation setup
+### Platform-specific Requirements
 
-### Design Patterns
+#### Windows
+- OpenGL development libraries
+- Visual Studio build tools
 
-1. **Entity-Component System (ECS)**
-   - Separates data from behavior
-   - Enables flexible agent composition
-   - Makes adding new features easier
-
-2. **Observer Pattern (Events)**
-   - Decouples communication between components
-   - Centralizes event handling
-   - Makes the system more maintainable
-
-3. **State Pattern**
-   - Cleanly manages different simulation states
-   - Simplifies state transitions
-   - Eliminates complex conditional logic
-
-4. **Spatial Partitioning**
-   - Optimizes spatial queries
-   - Reduces collision detection complexity
-   - Enables efficient neighbor lookups
-
-## Getting Started
-
-### Prerequisites
-
-- Rust (latest stable version)
-- Cargo (comes with Rust)
-
-### Installation
-
-1. Clone the repository:
+#### Linux
 ```bash
-git clone https://github.com/yourusername/world-simulator.git
-cd world-simulator
+sudo apt-get install libasound2-dev libudev-dev pkg-config
 ```
 
-2. Build the project:
+#### macOS
 ```bash
-cargo build
+brew install pkg-config
 ```
 
-3. Run the simulation:
+## Running the Simulation
+
+### Normal Mode
+Run the simulation with real-time visualization:
+```bash
+cargo run --release
+```
+
+### Training Mode
+Run in training mode (faster updates, no rendering):
+```bash
+cargo run --release -- --training
+```
+
+### Debug Mode
+Run with debug information and slower updates:
 ```bash
 cargo run
 ```
 
-### Controls
+## Testing
 
-- Space: Pause/Resume simulation
-- Esc: Exit to menu
-- Arrow keys: Navigate menu
-- Enter: Select menu option
+### Run All Tests
+```bash
+cargo test --release
+```
 
-## Learning Resources
+### Run Documentation Tests
+```bash
+cargo test --doc --release
+```
 
-This project demonstrates several key Rust concepts:
+### Run Specific Tests
+```bash
+# Run performance benchmarks
+cargo test world::tests::benchmark_training_mode -- --nocapture
 
-1. **Ownership and Borrowing**
-   - Smart pointer usage (Box, Rc, Arc)
-   - Lifetime management
-   - Reference rules
+# Run movement tests
+cargo test world::tests::test_agent_movement -- --nocapture
+```
 
-2. **Trait System**
-   - Trait objects for components
-   - Trait bounds and generics
-   - Dynamic dispatch
+## Controls
 
-3. **Concurrency**
-   - Parallel processing with Rayon
-   - Thread-safe data structures
-   - Message passing
+- `Space`: Toggle pause/resume simulation
+- `Esc`: Exit simulation
 
-4. **Module System**
-   - Code organization
-   - Visibility rules
-   - Package management
+## Configuration
 
-## Contributing
+The simulation can be configured through constants in `src/constants.rs`:
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+- `VISION_RANGE`: How far agents can see
+- `AGENT_SPEED`: Base movement speed
+- `WORLD_WIDTH/HEIGHT`: Simulation world dimensions
+- `GAME_SPEED`: Update rate (FPS)
+
+## Performance Tuning
+
+For optimal performance when running in training mode:
+```bash
+RUSTFLAGS="-C target-cpu=native" cargo run --release -- --training
+```
+
+This enables CPU-specific optimizations including SIMD instructions where available.
 
 ## License
 

@@ -10,6 +10,7 @@ pub const WINDOW_WIDTH: f32 = 1600.0;
 pub const WINDOW_HEIGHT: f32 = 900.0;
 pub const WORLD_WIDTH: i32 = 80;
 pub const WORLD_HEIGHT: i32 = 45;
+pub const CATCH_DISTANCE: f32 = 5.0;
 
 // Movement constants
 pub const BASE_PREDATOR_SPEED: f32 = 1.5;

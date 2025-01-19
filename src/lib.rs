@@ -69,8 +69,6 @@ pub struct Simulation {
     world: world::World,
     /// Last update timestamp
     last_update: Instant,
-    /// Update interval in milliseconds
-    update_interval: std::time::Duration,
     slider_rect: Option<Mesh>,
     slider_value: f32,  // 0.0 to 1.0
     slider_active: bool,
@@ -97,11 +95,25 @@ impl Simulation {
         Simulation {
             world,
             last_update: Instant::now(),
-            update_interval: std::time::Duration::from_millis(100),
             slider_rect: None,
             slider_value: 0.5,  // Start at 50% speed
             slider_active: false,
         }
+    }
+
+    /// Enable training mode with optional custom configuration
+    pub fn enable_training_mode(&mut self, config: Option<world::TrainingConfig>) {
+        self.world.enable_training_mode(config);
+    }
+
+    /// Disable training mode
+    pub fn disable_training_mode(&mut self) {
+        self.world.disable_training_mode();
+    }
+
+    /// Get current training mode status
+    pub fn is_training(&self) -> bool {
+        self.world.is_training()
     }
 
     fn update_slider(&mut self, x: f32, y: f32) {
@@ -123,7 +135,12 @@ impl EventHandler<ggez::GameError> for Simulation {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-        graphics::clear(ctx, graphics::Color::BLACK);
+        // Skip drawing if in training mode with rendering disabled
+        if self.world.is_training() {
+            return Ok(());
+        }
+
+        graphics::clear(ctx, Color::BLACK);
         self.world.draw(ctx)?;
 
         // Draw slider background

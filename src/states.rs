@@ -1,145 +1,169 @@
-//! # State Management System
+//! # State System
 //! 
-//! This module implements the State pattern to manage different simulation states
-//! and their transitions. It provides a clean way to handle different behaviors
-//! based on the current state of the simulation.
-//!
-//! ## Design Pattern: State
-//!
-//! The State pattern is implemented through:
-//! - `SimulationState` trait defining state behavior
-//! - `GameState` enum listing possible states
-//! - Concrete state implementations for each game state
-//!
-//! ### Benefits
-//! - Clean separation of state-specific behavior
-//! - Easy to add new states without modifying existing code
-//! - Clear state transition logic
-//! - Eliminates complex conditional logic
-//!
-//! ### Example Usage
-//! ```rust
-//! use world_simulator::states::{SimulationState, GameState};
-//!
-//! // Create a state
-//! struct RunningState;
-//! impl SimulationState for RunningState {
-//!     fn update(&mut self) {
-//!         // Update simulation logic
+//! This module implements the state pattern for managing different simulation states.
+//! Each state handles its own update, draw, and input logic.
+//! 
+//! ## Example
+//! ```no_run
+//! use world_simulator::states::SimulationState;
+//! use world_simulator::world::World;
+//! use world_simulator::events::EventSystem;
+//! use ggez::error::GameResult;
+//! use ggez::event::KeyCode;
+//! 
+//! struct TestState;
+//! 
+//! impl SimulationState for TestState {
+//!     fn update(&mut self, world: &mut World, _events: &mut EventSystem) -> GameResult {
+//!         world.update();
+//!         Ok(())
 //!     }
-//!
-//!     fn transition(&self) -> Option<GameState> {
-//!         // Check conditions and transition if needed
-//!         None
+//!     
+//!     fn draw(&self, world: &World, ctx: &mut ggez::Context) -> GameResult {
+//!         world.draw(ctx)
+//!     }
+//!     
+//!     fn handle_input(&mut self, _world: &mut World, _events: &mut EventSystem, 
+//!                    _keycode: KeyCode, _ctx: &mut ggez::Context) {
+//!         // Handle input here
 //!     }
 //! }
 //! ```
 
-use ggez::{Context, GameResult};
-use ggez::event::{self, KeyCode};
-use ggez::graphics::{self, Text};
-
+use ggez::Context;
+use ggez::event::KeyCode;
+use ggez::GameResult;
 use crate::world::World;
 use crate::events::{EventSystem, SimulationEvent};
 
-/// Represents different states the simulation can be in
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum GameState {
-    /// Initial setup state
-    Setup,
-    /// Main simulation running state
-    Running,
-    /// Simulation is paused
-    Paused,
-    /// Simulation has ended
-    GameOver,
-    Menu,
-}
-
-/// Trait defining behavior for simulation states
+/// The trait that all simulation states must implement.
+/// Each state handles updating the world, drawing to the screen, and processing input.
+/// 
+/// Example:
+/// ```
+/// use world_simulator::states::SimulationState;
+/// use world_simulator::world::World;
+/// use world_simulator::events::EventSystem;
+/// use ggez::error::GameResult;
+/// use ggez::event::KeyCode;
+/// 
+/// struct TestState;
+/// 
+/// impl SimulationState for TestState {
+///     fn update(&mut self, world: &mut World, _events: &mut EventSystem) -> GameResult {
+///         world.update();
+///         Ok(())
+///     }
+///     
+///     fn draw(&self, world: &World, ctx: &mut ggez::Context) -> GameResult {
+///         world.draw(ctx)
+///     }
+///     
+///     fn handle_input(&mut self, _world: &mut World, _events: &mut EventSystem, 
+///                    _keycode: KeyCode, _ctx: &mut ggez::Context) {
+///         // Handle input here
+///     }
+/// }
+/// ```
 pub trait SimulationState {
-    /// Update logic for the current state
-    fn update(&mut self, world: &mut World, event_system: &mut EventSystem) -> GameResult<()>;
-    
-    /// Check if state should transition to another state
-    fn transition(&self) -> Option<GameState>;
-
-    fn draw(&self, world: &World, ctx: &mut Context) -> GameResult<()>;
-    fn handle_input(&mut self, world: &mut World, event_system: &mut EventSystem, keycode: KeyCode, ctx: &mut Context);
+    fn update(&mut self, world: &mut World, events: &mut EventSystem) -> GameResult;
+    fn draw(&self, world: &World, ctx: &mut Context) -> GameResult;
+    fn handle_input(&mut self, world: &mut World, events: &mut EventSystem, keycode: KeyCode, ctx: &mut Context);
 }
 
-/// State when simulation is actively running
+/// Example:
+/// ```
+/// use world_simulator::states::{SimulationState, RunningState};
+/// use world_simulator::world::World;
+/// use world_simulator::events::EventSystem;
+/// use ggez::error::GameResult;
+/// use ggez::event::KeyCode;
+/// 
+/// // Create the state and simulation objects
+/// let mut state = RunningState::new();
+/// let mut world = World::new(100, 100);
+/// let mut events = EventSystem::new();
+/// 
+/// // Demonstrate state behavior (without actual rendering)
+/// # fn test_state() -> GameResult {
+/// #    let mut state = RunningState::new();
+/// #    let mut world = World::new(100, 100);
+/// #    let mut events = EventSystem::new();
+/// #    state.update(&mut world, &mut events)?;
+/// #    Ok(())
+/// # }
+/// # test_state().unwrap();
+/// ```
 #[derive(Default)]
-pub struct RunningState;
+pub struct RunningState {
+    // Add any state-specific fields here
+}
 
 impl RunningState {
-    /// Creates a new running state
-    pub fn new(_world: World, _events: EventSystem) -> Self {
-        RunningState
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
 impl SimulationState for RunningState {
-    fn update(&mut self, _world: &mut World, _event_system: &mut EventSystem) -> GameResult<()> {
-        // World update is handled by Simulation
+    fn update(&mut self, world: &mut World, _events: &mut EventSystem) -> GameResult {
+        world.update();
         Ok(())
     }
 
-    fn draw(&self, world: &World, ctx: &mut Context) -> GameResult<()> {
+    fn draw(&self, world: &World, ctx: &mut Context) -> GameResult {
         world.draw(ctx)
     }
 
-    fn handle_input(&mut self, _world: &mut World, event_system: &mut EventSystem, keycode: KeyCode, _ctx: &mut Context) {
+    fn handle_input(&mut self, _world: &mut World, events: &mut EventSystem, keycode: KeyCode, _ctx: &mut Context) {
         match keycode {
-            KeyCode::P => event_system.emit(SimulationEvent::StateChanged(GameState::Paused)),
-            _ => {},
+            KeyCode::Space => {
+                events.emit(SimulationEvent::StateChanged(GameState::Paused));
+            }
+            _ => {}
         }
-    }
-
-    fn transition(&self) -> Option<GameState> {
-        None
     }
 }
 
-/// State when simulation is paused
 #[derive(Default)]
-pub struct PausedState;
+pub struct PausedState {
+    // Add any state-specific fields here
+}
 
 impl PausedState {
-    /// Creates a new paused state
-    pub fn new(_world: World, _events: EventSystem) -> Self {
-        PausedState
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
 impl SimulationState for PausedState {
-    fn update(&mut self, _world: &mut World, _event_system: &mut EventSystem) -> GameResult<()> {
+    fn update(&mut self, _world: &mut World, _events: &mut EventSystem) -> GameResult {
+        // World is paused, no updates needed
         Ok(())
     }
 
-    fn draw(&self, _world: &World, ctx: &mut Context) -> GameResult<()> {
-        // Draw pause menu
-        let resume_text = Text::new("Press 'R' to Resume");
-        let quit_text = Text::new("Press 'Q' to Quit");
-        let follow_text = Text::new("Press 'F' to Toggle Mouse Following");
-        
-        graphics::draw(ctx, &resume_text, graphics::DrawParam::default().dest([100.0, 100.0]))?;
-        graphics::draw(ctx, &quit_text, graphics::DrawParam::default().dest([100.0, 150.0]))?;
-        graphics::draw(ctx, &follow_text, graphics::DrawParam::default().dest([100.0, 200.0]))?;
+    fn draw(&self, world: &World, ctx: &mut Context) -> GameResult {
+        // Draw the paused world
+        world.draw(ctx)?;
+        // TODO: Draw pause menu or overlay
         Ok(())
     }
 
-    fn handle_input(&mut self, _world: &mut World, event_system: &mut EventSystem, keycode: KeyCode, ctx: &mut Context) {
+    fn handle_input(&mut self, _world: &mut World, events: &mut EventSystem, keycode: KeyCode, _ctx: &mut Context) {
         match keycode {
-            KeyCode::R => event_system.emit(SimulationEvent::StateChanged(GameState::Running)),
-            KeyCode::Q => event::quit(ctx),
-            _ => {},
+            KeyCode::Space => {
+                events.emit(SimulationEvent::StateChanged(GameState::Running));
+            }
+            _ => {}
         }
     }
+}
 
-    fn transition(&self) -> Option<GameState> {
-        None
-    }
+/// The possible states of the simulation
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GameState {
+    Running,
+    Paused,
 }
 
 pub struct MenuState;
@@ -155,9 +179,5 @@ impl SimulationState for MenuState {
 
     fn handle_input(&mut self, _world: &mut World, _event_system: &mut EventSystem, _keycode: KeyCode, _ctx: &mut Context) {
         // Handle input for menu state
-    }
-
-    fn transition(&self) -> Option<GameState> {
-        None
     }
 } 
