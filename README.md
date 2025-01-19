@@ -1,67 +1,108 @@
 # World Simulator
 
-A simple world simulation written in Rust using the `ggez` game engine. This simulator includes agents of different types interacting in a 2D grid. Agents can move randomly, follow the mouse, chase prey, or avoid predators.
+A Rust-based simulation demonstrating modern game architecture and design patterns. This project serves as a learning resource for Rust programming concepts and software design patterns.
 
 ## Features
-- **Agent Interaction**: Simulates predator-prey dynamics where predators chase prey and prey avoid predators.
-- **Mouse Interaction**: Optionally allows agents to follow the mouse position.
-- **Vision Cone**: Agents have a field of view that determines which other agents they can see.
-- **Dynamic Updates**: Real-time simulation with pause and resume functionality.
-- **Googly Eyes**: Agents are visualized with googly eyes and a vision cone for added fun!
 
----
+- Entity-Component System (ECS) architecture
+- Spatial partitioning for efficient agent interactions
+- Event-driven communication using the Observer pattern
+- State management using the State pattern
+- Parallel processing for performance optimization
 
-## Installation Instructions
+## Architecture
 
-### 1. **Install Rust**  
-Make sure you have Rust and Cargo installed. If not, download and install them from [Rust's official website](https://www.rust-lang.org/tools/install).
+The project is organized into several modules:
 
-### 2. **Clone the Repository**  
+- `agent.rs`: Implements the Entity-Component System for agents
+- `components.rs`: Defines component traits and implementations
+- `events.rs`: Handles event management using the Observer pattern
+- `states.rs`: Manages simulation states using the State pattern
+- `world.rs`: Implements spatial partitioning and world management
+- `main.rs`: Entry point and simulation setup
+
+### Design Patterns
+
+1. **Entity-Component System (ECS)**
+   - Separates data from behavior
+   - Enables flexible agent composition
+   - Makes adding new features easier
+
+2. **Observer Pattern (Events)**
+   - Decouples communication between components
+   - Centralizes event handling
+   - Makes the system more maintainable
+
+3. **State Pattern**
+   - Cleanly manages different simulation states
+   - Simplifies state transitions
+   - Eliminates complex conditional logic
+
+4. **Spatial Partitioning**
+   - Optimizes spatial queries
+   - Reduces collision detection complexity
+   - Enables efficient neighbor lookups
+
+## Getting Started
+
+### Prerequisites
+
+- Rust (latest stable version)
+- Cargo (comes with Rust)
+
+### Installation
+
+1. Clone the repository:
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/yourusername/world-simulator.git
 cd world-simulator
 ```
 
-### 3. **Run the Simulator**  
+2. Build the project:
+```bash
+cargo build
+```
+
+3. Run the simulation:
 ```bash
 cargo run
 ```
 
+### Controls
 
-## How to Use
+- Space: Pause/Resume simulation
+- Esc: Exit to menu
+- Arrow keys: Navigate menu
+- Enter: Select menu option
 
-- **Controls**:
-  - **`P`**: Pause the simulation.
-  - **`R`**: Resume the simulation when paused.
-  - **`Q`**: Quit the simulation when paused.
-  - **`F`**: Toggle "Follow Mouse" mode. When enabled, agents move toward the mouse position.
+## Learning Resources
 
-- **Mouse Interaction**:  
-  Move the mouse around to influence agent behavior in "Follow Mouse" mode.
+This project demonstrates several key Rust concepts:
 
----
+1. **Ownership and Borrowing**
+   - Smart pointer usage (Box, Rc, Arc)
+   - Lifetime management
+   - Reference rules
 
-## Customization
+2. **Trait System**
+   - Trait objects for components
+   - Trait bounds and generics
+   - Dynamic dispatch
 
-You can customize various constants in the `main.rs` file:
-- `VISION_RANGE`: Adjust the distance agents can "see."
-- `SCALING_FACTOR`: Set the size of the simulation grid cells.
-- `GAME_SPEED`: Change the simulation update interval (in milliseconds).
-- `AGENT_DRAW_SIZE`: Modify the visual size of agents.
+3. **Concurrency**
+   - Parallel processing with Rayon
+   - Thread-safe data structures
+   - Message passing
 
----
+4. **Module System**
+   - Code organization
+   - Visibility rules
+   - Package management
 
-## Dependencies
+## Contributing
 
-- [ggez](https://ggez.rs): A lightweight game framework for Rust.
-- [rayon](https://github.com/rayon-rs/rayon): For parallel processing.
-
----
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License. Feel free to use and modify the code. Contributions are welcome!
-
----
-
-Enjoy your simulation! 🕹️
+This project is licensed under the MIT License - see the LICENSE file for details.
