@@ -1,0 +1,9 @@
+README.md
+setup.py
+world_sim/__init__.py
+world_sim.egg-info/PKG-INFO
+world_sim.egg-info/SOURCES.txt
+world_sim.egg-info/dependency_links.txt
+world_sim.egg-info/not-zip-safe
+world_sim.egg-info/requires.txt
+world_sim.egg-info/top_level.txt
