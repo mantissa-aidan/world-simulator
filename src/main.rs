@@ -8,7 +8,7 @@ use world_simulator::{
 };
 
 fn main() -> GameResult {
-    let (ctx, event_loop) = ContextBuilder::new("world_simulator", "YourName")
+    let (ctx, event_loop) = ContextBuilder::new("world_simulator", "Aidan")
         .window_mode(WindowMode::default().dimensions(WINDOW_WIDTH, WINDOW_HEIGHT))
         .window_setup(WindowSetup::default().title("World Simulator"))
         .build()?;

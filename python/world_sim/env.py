@@ -1,7 +1,54 @@
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
-from .world_simulator import PyWorld
+from .world_simulator import PyWorld, AgentState
+
+class WorldEnv:
+    def __init__(self, width=200, height=112, num_predators=50, num_prey=100):
+        self.world = PyWorld(width=width, height=height, num_predators=num_predators, num_prey=num_prey)
+        self.world.enable_training_mode()  # Enable faster simulation mode
+        
+    def step(self, actions=None):
+        """
+        Step the simulation forward, optionally with actions for each agent.
+        
+        Args:
+            actions: Optional list of (dx, dy) tuples for each agent's movement direction
+                    If None, agents will move randomly
+        
+        Returns:
+            states: List of AgentState objects containing agent information
+            predators: Number of predators
+            prey: Number of prey
+        """
+        if actions is not None:
+            # Apply provided actions to each agent
+            states = self.world.get_agent_states()
+            for i, (dx, dy) in enumerate(actions):
+                if i < len(states):
+                    self.world.apply_action(i, float(dx), float(dy))
+        
+        # Step the simulation
+        self.world.step()
+        
+        # Get updated state
+        states = self.world.get_agent_states()
+        predators, prey = self.world.get_agent_counts()
+        
+        return states, predators, prey
+    
+    def reset(self):
+        """Reset the simulation to initial state."""
+        self.world.reset()
+        states = self.world.get_agent_states()
+        predators, prey = self.world.get_agent_counts()
+        return states, predators, prey
+    
+    def get_state(self):
+        """Get current simulation state."""
+        states = self.world.get_agent_states()
+        predators, prey = self.world.get_agent_counts()
+        return states, predators, prey
 
 class WorldSimEnv(gym.Env):
     """
