@@ -70,29 +70,12 @@ impl Agent {
     /// Creates a new agent with basic components
     ///
     /// # Arguments
-    /// * `x` - Initial x position
-    /// * `y` - Initial y position
     /// * `agent_type` - The type of agent to create
-    pub fn new(x: i32, y: i32, agent_type: AgentType) -> Self {
-        let mut agent = Agent {
-            components: HashMap::new(),
+    pub fn new(agent_type: AgentType) -> Self {
+        Agent {
             agent_type,
-        };
-
-        // Add position component
-        agent.add_component(Position::new(x as f32, y as f32));
-
-        // Add movement component with initial speed based on type
-        let speed = match agent_type {
-            AgentType::TypeA => BASE_PREDATOR_SPEED,
-            AgentType::TypeB => BASE_PREY_SPEED,
-        };
-        agent.add_component(Movement::new(speed));
-
-        // Add vision component
-        agent.add_component(Vision::new(VISION_RANGE));
-
-        agent
+            components: HashMap::new(),
+        }
     }
 
     /// Adds a component to the agent

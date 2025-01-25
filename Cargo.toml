@@ -3,9 +3,24 @@ name = "world_simulator"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "world_simulator"
+# Add crate-type to build both a Rust library and Python module
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
-ggez = "0.6.1"
+ggez = "0.9"
 rand = "0.8"
-rayon = "1.8"
+rayon = "1.7"
+
+# Add PyO3 dependencies
+[dependencies.pyo3]
+version = "0.19"
+features = ["extension-module", "abi3-py37"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
 
 

@@ -11,18 +11,20 @@
 //! - Updates are applied in parallel to avoid race conditions
 //! - Grid updates are synchronized to maintain consistency
 
-use ggez::graphics::{self, Color, DrawParam, Mesh, DrawMode};
+use ggez::graphics::{self, Color, DrawParam, Mesh, DrawMode, Canvas};
 use ggez::{Context, GameResult};
 use rayon::prelude::*;
 use rand;
 use std::time::Instant;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::agent::{Agent, AgentType};
 use crate::constants::*;
-use crate::components::Vision;
+use crate::components::{Position, Movement, Vision};
 use crate::spatial::SpatialGrid;
-use crate::components::Position;
 use crate::constants::CATCH_DISTANCE;
+use crate::events::{EventSystem, SimulationEvent};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -94,24 +96,24 @@ impl World {
 
     /// Initialize or reset the world with specified number of agents
     pub fn initialize_agents(&mut self, num_predators: usize, num_prey: usize) {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+
+        // Clear existing agents
         self.agents.clear();
-        
+
         // Add predators
         for _ in 0..num_predators {
-            self.add_agent(
-                rand::random::<i32>() % self.width,
-                rand::random::<i32>() % self.height,
-                AgentType::TypeA,
-            );
+            let x = rng.gen_range(0.0..self.width as f32);
+            let y = rng.gen_range(0.0..self.height as f32);
+            self.add_agent(AgentType::TypeA, x, y);
         }
 
         // Add prey
         for _ in 0..num_prey {
-            self.add_agent(
-                rand::random::<i32>() % self.width,
-                rand::random::<i32>() % self.height,
-                AgentType::TypeB,
-            );
+            let x = rng.gen_range(0.0..self.width as f32);
+            let y = rng.gen_range(0.0..self.height as f32);
+            self.add_agent(AgentType::TypeB, x, y);
         }
     }
 
@@ -130,10 +132,12 @@ impl World {
         (predators, prey)
     }
 
+    /// Get the width of the world
     pub fn width(&self) -> i32 {
         self.width
     }
 
+    /// Get the height of the world
     pub fn height(&self) -> i32 {
         self.height
     }
@@ -146,16 +150,17 @@ impl World {
         &mut self.agents
     }
 
-    pub fn add_agent(&mut self, x: i32, y: i32, agent_type: AgentType) {
-        let mut agent = Agent::new(x, y, agent_type);
-        // Set speed based on agent type
-        let speed = match agent_type {
-            AgentType::TypeA => BASE_PREDATOR_SPEED,
-            AgentType::TypeB => BASE_PREY_SPEED,
-        };
-        if let Some(mov) = agent.movement_mut() {
-            mov.speed = speed;
-        }
+    pub fn add_agent(&mut self, agent_type: AgentType, x: f32, y: f32) {
+        let mut agent = Agent::new(agent_type);
+        agent.add_component(Position { x, y });
+        agent.add_component(Movement {
+            velocity: (0.0, 0.0),
+            speed: match agent_type {
+                AgentType::TypeA => 2.0,
+                AgentType::TypeB => 1.5,
+            },
+        });
+        agent.add_component(Vision::new(100.0));
         self.agents.push(agent);
     }
 
@@ -360,7 +365,7 @@ impl World {
             .chunks(BATCH_SIZE)
             .flat_map(|batch| {
                 batch.par_iter().map(|&agent_idx| {
-                    let agent = &self.agents[agent_idx];
+                let agent = &self.agents[agent_idx];
                     let agent_pos = if let Some(pos) = agent.position() {
                         pos
                     } else {
@@ -393,14 +398,14 @@ impl World {
 
                     // Find nearest agent of opposite type for chase/flee behavior
                     let target_pos = if let Some((_, other)) = agent.find_nearest_visible_agent(
-                        &self.agents,
-                        match agent.agent_type {
-                            AgentType::TypeA => AgentType::TypeB,
-                            AgentType::TypeB => AgentType::TypeA,
-                        },
-                        &self.grid,
-                    ) {
-                        if let Some(other_pos) = other.position() {
+                    &self.agents,
+                    match agent.agent_type {
+                        AgentType::TypeA => AgentType::TypeB,
+                        AgentType::TypeB => AgentType::TypeA,
+                    },
+                    &self.grid,
+                ) {
+                    if let Some(other_pos) = other.position() {
                             match agent.agent_type {
                                 AgentType::TypeA => Some((other_pos.x, other_pos.y)),
                                 AgentType::TypeB => {
@@ -466,7 +471,7 @@ impl World {
                             }
                         }
                     } else {
-                        (agent_idx, target_pos)
+                (agent_idx, target_pos)
                     }
                 }).collect::<Vec<_>>()
             })
@@ -504,19 +509,19 @@ impl World {
         }
     }
 
-    pub fn draw(&self, ctx: &mut Context) -> GameResult<()> {
+    pub fn draw(&self, canvas: &mut Canvas, ctx: &mut Context) -> GameResult<()> {
         // Skip rendering in training mode if configured
         if self.training_mode && self.training_config.skip_rendering {
             return Ok(());
         }
 
         for agent in &self.agents {
-            self.draw_agent(agent, ctx)?;
+            self.draw_agent(agent, canvas, ctx)?;
         }
         Ok(())
     }
 
-    fn draw_agent(&self, agent: &Agent, ctx: &mut Context) -> GameResult<()> {
+    fn draw_agent(&self, agent: &Agent, canvas: &mut Canvas, ctx: &mut Context) -> GameResult<()> {
         if let (Some(pos), Some(mov), Some(_vision)) = (
             agent.position(),
             agent.movement(),
@@ -535,7 +540,7 @@ impl World {
 
             // Draw agent body
             let body = Mesh::new_circle(
-                ctx,
+                &ctx.gfx,
                 DrawMode::fill(),
                 [pos_x, pos_y],
                 AGENT_DRAW_SIZE,
@@ -545,7 +550,7 @@ impl World {
                     AgentType::TypeB => Color::BLUE,
                 },
             )?;
-            graphics::draw(ctx, &body, DrawParam::default())?;
+            canvas.draw(&body, DrawParam::default());
 
             // Draw eyes
             let cos = direction.cos();
@@ -553,7 +558,7 @@ impl World {
             
             // Left eye
             let left_eye = Mesh::new_circle(
-                ctx,
+                &ctx.gfx,
                 DrawMode::fill(),
                 [
                     pos_x + eye_offset * cos - eye_offset * sin,
@@ -563,11 +568,11 @@ impl World {
                 0.1,
                 Color::WHITE,
             )?;
-            graphics::draw(ctx, &left_eye, DrawParam::default())?;
+            canvas.draw(&left_eye, DrawParam::default());
 
             // Right eye
             let right_eye = Mesh::new_circle(
-                ctx,
+                &ctx.gfx,
                 DrawMode::fill(),
                 [
                     pos_x + eye_offset * cos + eye_offset * sin,
@@ -577,7 +582,7 @@ impl World {
                 0.1,
                 Color::WHITE,
             )?;
-            graphics::draw(ctx, &right_eye, DrawParam::default())?;
+            canvas.draw(&right_eye, DrawParam::default());
         }
         Ok(())
     }
@@ -623,6 +628,37 @@ impl World {
             // TODO: Implement catch logic
         }
     }
+
+    /// Get positions of all agents
+    pub fn get_agent_positions(&self) -> Vec<(f32, f32)> {
+        self.agents.iter()
+            .map(|agent| {
+                let pos = agent.get_component::<Position>().unwrap();
+                (pos.x, pos.y)
+            })
+            .collect()
+    }
+
+    /// Apply an action to a specific agent
+    pub fn apply_agent_action(&mut self, agent_idx: usize, dx: f32, dy: f32) -> bool {
+        if agent_idx >= self.agents.len() {
+            return false;
+        }
+
+        // Normalize the direction vector
+        let magnitude = (dx * dx + dy * dy).sqrt();
+        if magnitude > 0.0 {
+            let normalized_dx = dx / magnitude;
+            let normalized_dy = dy / magnitude;
+
+            // Update the agent's movement
+            if let Some(mov) = self.agents[agent_idx].movement_mut() {
+                mov.velocity = (normalized_dx * mov.speed, normalized_dy * mov.speed);
+            }
+        }
+
+        true
+    }
 }
 
 #[cfg(test)]
@@ -634,7 +670,7 @@ mod tests {
         let mut world = World::new(100, 100);
         
         // Add a test agent
-        world.add_agent(50, 50, AgentType::TypeA);
+        world.add_agent(AgentType::TypeA, 50.0, 50.0);
         
         // Get initial position
         let initial_pos = world.agents[0].position().unwrap().clone();
@@ -689,7 +725,7 @@ mod tests {
     #[test]
     fn test_training_mode_updates() {
         let mut world = World::new(100, 100);
-        world.add_agent(50, 50, AgentType::TypeA);
+        world.add_agent(AgentType::TypeA, 50.0, 50.0);
         
         // Enable training mode with multiple steps per action
         let config = TrainingConfig {
@@ -721,8 +757,8 @@ mod tests {
         
         // Add multiple agents close together
         for i in 0..5 {
-            world.add_agent(50 + i, 50, AgentType::TypeA);
-            world.add_agent(50 + i, 51, AgentType::TypeB);
+            world.add_agent(AgentType::TypeA, 50.0 + i as f32, 50.0);
+            world.add_agent(AgentType::TypeB, 50.0 + i as f32, 51.0);
         }
 
         // Enable training mode with limited observations

@@ -1,100 +1,142 @@
 # World Simulator
 
-A predator-prey simulation built in Rust using ggez for visualization. The simulation features agents that can chase, flee, and interact with each other in a 2D environment.
+A Rust-based simulation that demonstrates predator-prey dynamics in a 2D world, with Python bindings for machine learning integration.
 
 ## Features
 
-- Predator and prey agents with distinct behaviors
-- Training mode for reinforcement learning
-- Real-time visualization with ggez
+- Real-time 2D simulation with predator and prey agents
+- Entity-Component System (ECS) architecture
+- SIMD-optimized distance calculations for performance
+- Spatial partitioning for efficient neighbor lookups
+- Python bindings for machine learning integration
+- Training mode for faster simulation during learning
 - Configurable simulation parameters
-- Performance optimizations including SIMD and batch processing
+- Smooth agent movement with collision avoidance
+- Visual feedback with agent direction indicators
 
 ## Requirements
 
-- Rust (stable channel)
-- Cargo package manager
-- ggez dependencies (see below for platform-specific requirements)
+- Rust (latest stable version)
+- Python 3.6 or higher
+- NumPy
+- Gymnasium (for RL environment integration)
 
-### Platform-specific Requirements
+## Installation
 
-#### Windows
-- OpenGL development libraries
-- Visual Studio build tools
-
-#### Linux
+1. Clone the repository:
 ```bash
-sudo apt-get install libasound2-dev libudev-dev pkg-config
+git clone https://github.com/yourusername/world-simulator.git
+cd world-simulator
 ```
 
-#### macOS
+2. Install the Python package in development mode:
 ```bash
-brew install pkg-config
+cd python
+pip install -e .
 ```
 
-## Running the Simulation
+## Usage
 
-### Normal Mode
-Run the simulation with real-time visualization:
-```bash
-cargo run --release
+### Python Interface
+
+```python
+from world_simulator import PyWorld
+
+# Create a new world with dimensions 800x600 and some agents
+world = PyWorld(800, 600, num_predators=10, num_prey=20)
+
+# Enable training mode for faster simulation
+world.enable_training_mode()
+
+# Step the simulation and get agent positions
+positions = world.step()
+
+# Reset the simulation
+world.reset()
 ```
 
-### Training Mode
-Run in training mode (faster updates, no rendering):
-```bash
-cargo run --release -- --training
-```
+### Running the Simulation
 
-### Debug Mode
-Run with debug information and slower updates:
+The simulation can be run directly using Cargo:
+
 ```bash
 cargo run
 ```
 
-## Testing
+Controls:
+- Space: Pause/Resume simulation
+- Q: Quit
+- Mouse: Adjust simulation speed using the slider
 
-### Run All Tests
-```bash
-cargo test --release
-```
+## Architecture
 
-### Run Documentation Tests
-```bash
-cargo test --doc --release
-```
+The project uses several design patterns and Rust features:
 
-### Run Specific Tests
-```bash
-# Run performance benchmarks
-cargo test world::tests::benchmark_training_mode -- --nocapture
+### Component Pattern (ECS)
+- Agents are entities that hold various components
+- Components include Position, Movement, Vision
+- Flexible agent composition and behavior
 
-# Run movement tests
-cargo test world::tests::test_agent_movement -- --nocapture
-```
+### State Pattern
+- Different simulation states (Running, Paused, Menu)
+- Clean separation of state-specific logic
+- Centralized state management
 
-## Controls
+### Observer Pattern
+- Event system for decoupled communication
+- Handles state changes and agent interactions
 
-- `Space`: Toggle pause/resume simulation
-- `Esc`: Exit simulation
+### Performance Optimizations
+- SIMD-accelerated distance calculations
+- Spatial partitioning for efficient neighbor lookups
+- Batch processing for better cache utilization
+- Parallel agent updates using rayon
 
-## Configuration
+## Project Structure
 
-The simulation can be configured through constants in `src/constants.rs`:
+- `src/`
+  - `agent.rs`: Agent implementation with component management
+  - `components.rs`: Component traits and implementations
+  - `events.rs`: Event system implementation
+  - `states.rs`: Game state management
+  - `world.rs`: World and spatial grid implementation
+  - `constants.rs`: Configuration constants
+  - `spatial.rs`: Spatial partitioning module
+  - `python.rs`: Python bindings
+- `python/`: Python package files
 
-- `VISION_RANGE`: How far agents can see
-- `AGENT_SPEED`: Base movement speed
-- `WORLD_WIDTH/HEIGHT`: Simulation world dimensions
-- `GAME_SPEED`: Update rate (FPS)
+## TODO
 
-## Performance Tuning
+### Core Features
+- [ ] Add energy/health system for agents
+- [ ] Implement agent reproduction mechanics
+- [ ] Add food/resource spawning system
+- [ ] Create different agent species with unique traits
 
-For optimal performance when running in training mode:
-```bash
-RUSTFLAGS="-C target-cpu=native" cargo run --release -- --training
-```
+### Technical Improvements
+- [ ] Add OpenGL/WebGL rendering backend option
+- [ ] Implement multi-threaded spatial partitioning
+- [ ] Add configurable neural networks for agent behavior
+- [ ] Create serialization system for saving/loading simulation states
 
-This enables CPU-specific optimizations including SIMD instructions where available.
+### Machine Learning Integration
+- [ ] Implement Gymnasium environment interface
+- [ ] Add reward shaping options for RL training
+- [ ] Create example training scripts for different RL algorithms
+- [ ] Add tools for visualizing learned behaviors
+
+### Documentation
+- [ ] Add API documentation for Python bindings
+- [ ] Create examples for common use cases
+- [ ] Add performance tuning guide
+- [ ] Create contribution guidelines
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 
 ## License
 

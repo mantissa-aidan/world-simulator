@@ -14,12 +14,15 @@ def main():
     
     # Run simulation for 1000 steps
     for i in range(1000):
-        # Step the simulation and get agent positions
-        positions = world.step()
+        # Step the simulation
+        world.step()
         
         if i % 100 == 0:
-            num_agents = len(positions)
-            print(f"Step {i}: {num_agents} agents")
+            # Get current state
+            states = world.get_agent_states()
+            num_agents = len(states)
+            predators, prey = world.get_agent_counts()
+            print(f"Step {i}: {num_agents} agents ({predators} predators, {prey} prey)")
     
     # Reset the world
     world.reset()

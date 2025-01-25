@@ -30,11 +30,13 @@
 //! }
 //! ```
 
-use ggez::Context;
-use ggez::event::KeyCode;
-use ggez::GameResult;
+use ggez::graphics::{self, Color, DrawMode, DrawParam, Mesh, Text};
+use ggez::{Context, GameResult};
+use ggez::event::EventHandler;
+use ggez::input::keyboard::KeyCode;
 use crate::world::World;
 use crate::events::{EventSystem, SimulationEvent};
+use ggez::graphics::Canvas;
 
 /// The trait that all simulation states must implement.
 /// Each state handles updating the world, drawing to the screen, and processing input.
@@ -112,7 +114,10 @@ impl SimulationState for RunningState {
     }
 
     fn draw(&self, world: &World, ctx: &mut Context) -> GameResult {
-        world.draw(ctx)
+        let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
+        world.draw(&mut canvas, ctx)?;
+        canvas.finish(ctx)?;
+        Ok(())
     }
 
     fn handle_input(&mut self, _world: &mut World, events: &mut EventSystem, keycode: KeyCode, _ctx: &mut Context) {
@@ -143,9 +148,9 @@ impl SimulationState for PausedState {
     }
 
     fn draw(&self, world: &World, ctx: &mut Context) -> GameResult {
-        // Draw the paused world
-        world.draw(ctx)?;
-        // TODO: Draw pause menu or overlay
+        let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
+        world.draw(&mut canvas, ctx)?;
+        canvas.finish(ctx)?;
         Ok(())
     }
 

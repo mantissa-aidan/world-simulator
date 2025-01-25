@@ -46,22 +46,28 @@
 
 pub mod agent;
 pub mod components;
+pub mod constants;
 pub mod events;
+pub mod spatial;
 pub mod states;
 pub mod world;
-pub mod constants;
-pub mod spatial;
+pub mod python;
 
 use std::time::Instant;
 use ggez::{Context, GameResult};
-use ggez::event::{self, EventHandler, KeyCode, KeyMods, MouseButton};
-use ggez::graphics::{self, Color, DrawMode, DrawParam, Mesh, Text};
+use ggez::event::{self, EventHandler};
+use ggez::input::keyboard::{KeyInput, KeyCode};
+use ggez::input::mouse::MouseButton;
+use ggez::graphics::{self, Color, DrawMode, DrawParam, Mesh, Text, Canvas};
 use std::time::Duration;
 
 // Re-export commonly used items
 pub use agent::{Agent, AgentType};
 pub use states::{GameState, SimulationState};
 pub use events::{EventSystem, SimulationEvent};
+
+// Re-export the Python module
+pub use crate::python::*;
 
 /// Main simulation struct that manages the game state
 pub struct Simulation {
@@ -81,14 +87,14 @@ impl Simulation {
         // Create initial agents
         for _ in 0..100 {
             world.add_agent(
-                rand::random::<i32>() % width,
-                rand::random::<i32>() % height,
                 agent::AgentType::TypeA,
+                rand::random::<f32>() * width as f32,
+                rand::random::<f32>() * height as f32,
             );
             world.add_agent(
-                rand::random::<i32>() % width,
-                rand::random::<i32>() % height,
                 agent::AgentType::TypeB,
+                rand::random::<f32>() * width as f32,
+                rand::random::<f32>() * height as f32,
             );
         }
 
@@ -140,12 +146,12 @@ impl EventHandler<ggez::GameError> for Simulation {
             return Ok(());
         }
 
-        graphics::clear(ctx, Color::BLACK);
-        self.world.draw(ctx)?;
+        let mut canvas = graphics::Canvas::from_frame(ctx, Color::BLACK);
+        self.world.draw(&mut canvas, ctx)?;
 
         // Draw slider background
         if let Some(ref slider_rect) = self.slider_rect {
-            graphics::draw(ctx, slider_rect, DrawParam::default())?;
+            canvas.draw(slider_rect, DrawParam::default());
         }
 
         // Draw slider handle
@@ -157,24 +163,24 @@ impl EventHandler<ggez::GameError> for Simulation {
             0.1,
             Color::WHITE,
         )?;
-        graphics::draw(ctx, &handle, DrawParam::default())?;
+        canvas.draw(&handle, DrawParam::default());
 
         // Draw speed text
         let speed_text = Text::new(format!("Speed: {:.0}%", self.slider_value * 100.0));
-        graphics::draw(
-            ctx,
+        canvas.draw(
             &speed_text,
             DrawParam::default().dest([230.0, 20.0]).color(Color::WHITE),
-        )?;
+        );
 
-        graphics::present(ctx)?;
+        canvas.finish(ctx)?;
         Ok(())
     }
 
-    fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, _repeat: bool) {
-        if keycode == KeyCode::Q {
-            event::quit(ctx);
+    fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeat: bool) -> GameResult<()> {
+        if input.keycode == Some(KeyCode::Q) {
+            ctx.request_quit();
         }
+        Ok(())
     }
 
     fn mouse_button_down_event(
@@ -183,13 +189,15 @@ impl EventHandler<ggez::GameError> for Simulation {
         button: MouseButton,
         x: f32,
         y: f32,
-    ) {
+    ) -> GameResult<()> {
         if button == MouseButton::Left {
+            // Check if click is in slider area
             if y >= 20.0 && y <= 40.0 && x >= 20.0 && x <= 220.0 {
                 self.slider_active = true;
-                self.update_slider(x, y);
+                self.slider_value = ((x - 20.0) / 200.0).clamp(0.0, 1.0);
             }
         }
+        Ok(())
     }
 
     fn mouse_button_up_event(
@@ -198,15 +206,24 @@ impl EventHandler<ggez::GameError> for Simulation {
         button: MouseButton,
         _x: f32,
         _y: f32,
-    ) {
+    ) -> GameResult<()> {
         if button == MouseButton::Left {
             self.slider_active = false;
         }
+        Ok(())
     }
 
-    fn mouse_motion_event(&mut self, _ctx: &mut Context, x: f32, y: f32, _dx: f32, _dy: f32) {
+    fn mouse_motion_event(
+        &mut self,
+        _ctx: &mut Context,
+        x: f32,
+        y: f32,
+        _dx: f32,
+        _dy: f32,
+    ) -> GameResult<()> {
         if self.slider_active {
-            self.update_slider(x, y);
+            self.slider_value = ((x - 20.0) / 200.0).clamp(0.0, 1.0);
         }
+        Ok(())
     }
 } 
