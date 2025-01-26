@@ -3,10 +3,22 @@ import numpy as np
 from gymnasium import spaces
 from .world_simulator import PyWorld, AgentState
 
-class WorldEnv:
-    def __init__(self, width=200, height=112, num_predators=50, num_prey=100):
-        self.world = PyWorld(width=width, height=height, num_predators=num_predators, num_prey=num_prey)
-        self.world.enable_training_mode()  # Enable faster simulation mode
+class WorldEnv(gym.Env):
+    def __init__(self, width=200, height=112, num_predators=50, num_prey=100, training_mode=True):
+        # Create the world simulator
+        self.world = PyWorld(width=width, height=height, 
+                           num_predators=num_predators, 
+                           num_prey=num_prey)
+        
+        # Set training mode based on parameter
+        if training_mode:
+            self.world.enable_training_mode()
+        else:
+            self.world.disable_training_mode()
+        
+        self.training_mode = training_mode
+        
+        #self.world.enable_training_mode()  # Enable faster simulation mode
         
     def step(self, actions=None):
         """
@@ -49,6 +61,18 @@ class WorldEnv:
         states = self.world.get_agent_states()
         predators, prey = self.world.get_agent_counts()
         return states, predators, prey
+
+    @property
+    def training_mode(self):
+        return self._training_mode
+
+    @training_mode.setter
+    def training_mode(self, value: bool):
+        self._training_mode = value
+        if value:
+            self.world.enable_training_mode()
+        else:
+            self.world.disable_training_mode()
 
 class WorldSimEnv(gym.Env):
     """
